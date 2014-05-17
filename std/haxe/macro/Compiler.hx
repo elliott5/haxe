@@ -106,11 +106,15 @@ class Compiler {
 		} else {
 			function(c) return Lambda.has(ignore, c);
 		}
+		var displayValue = Context.definedValue("display");
 		if( classPaths == null ) {
 			classPaths = Context.getClassPath();
 			// do not force inclusion when using completion
-			if( Context.defined("display") )
-				return;
+			switch (displayValue) {
+				case null:
+				case "usage":
+				case _: return;
+			}
 			// normalize class path
 			for( i in 0...classPaths.length ) {
 				var cp = StringTools.replace(classPaths[i], "\\", "/");
@@ -261,14 +265,17 @@ class Compiler {
 			paths.push(path);
 		for (path in paths) {
 			var found:Bool = false;
+			var moduleFirstCharacter:String = ((path.indexOf(".") < 0)?path:path.substring(path.lastIndexOf(".")+1)).charAt(0);
+			var startsWithUpperCase:Bool = (moduleFirstCharacter == moduleFirstCharacter.toUpperCase());//needed because FileSystem is not case sensitive
 			var moduleRoot = (path.indexOf(".") < 0)?"":path.substring(0, path.lastIndexOf("."));
-
+			var moduleRootFirstCharacter:String = ((moduleRoot.indexOf(".") < 0)?moduleRoot:moduleRoot.substring(moduleRoot.lastIndexOf(".")+1)).charAt(0);
+			var rootStartsWithUpperCase:Bool = (moduleRootFirstCharacter == moduleRootFirstCharacter.toUpperCase());//needed because FileSystem is not case sensitive
 			for ( classPath in Context.getClassPath() ) {
 				var moduleRootPath = (moduleRoot == "")?"":(classPath + moduleRoot.split(".").join("/") + ".hx");
 				var fullPath = classPath + path.split(".").join("/");
-				var isValidDirectory:Bool = (sys.FileSystem.exists(fullPath) && sys.FileSystem.isDirectory(fullPath));
-				var isValidModule:Bool = !isValidDirectory && sys.FileSystem.exists(fullPath + ".hx");
-				var isValidSubType:Bool = !isValidModule && (moduleRootPath != "" && sys.FileSystem.exists(moduleRootPath));
+				var isValidModule:Bool = startsWithUpperCase && sys.FileSystem.exists(fullPath + ".hx");
+				var isValidSubType:Bool = !isValidModule && moduleRootPath != "" && rootStartsWithUpperCase && sys.FileSystem.exists(moduleRootPath);
+				var isValidDirectory:Bool = !isValidSubType && sys.FileSystem.exists(fullPath) && sys.FileSystem.isDirectory(fullPath);
 				if ( !isValidDirectory && !isValidModule && !isValidSubType)
 					continue;
 				else

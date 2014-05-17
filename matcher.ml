@@ -798,7 +798,7 @@ let rec is_explicit_null = function
 
 let rec all_ctors mctx t =
 	let h = ref PMap.empty in
-	(* if is_explicit_null t then h := PMap.add (CConst TNull) Ast.null_pos !h; *)
+	if is_explicit_null t then h := PMap.add (CConst TNull) Ast.null_pos !h;
 	match follow t with
 	| TAbstract({a_path = [],"Bool"},_) ->
 		h := PMap.add (CConst(TBool true)) Ast.null_pos !h;
@@ -898,8 +898,16 @@ let rec compile mctx stl pmat toplevel =
 			out.o_num_paths <- out.o_num_paths + 1;
 			let bl = bind_remaining out pv stl in
 			let dt = match (get_guard mctx out.o_id) with
-				| None -> expr out.o_id
-				| Some _ -> guard out.o_id (expr out.o_id) (match pl with [] -> None | _ -> Some (compile mctx stl pl false))
+				| None ->
+					expr out.o_id
+				| Some _ ->
+					let dt = match pl,mctx.need_val with
+						| [],false ->
+							None
+						| _ ->
+							Some (compile mctx stl pl false)
+					in
+					guard out.o_id (expr out.o_id) dt
 			in
 			(if bl = [] then dt else bind bl dt)
 		end else if i > 0 then begin
@@ -1032,7 +1040,11 @@ let convert_switch mctx st cases loop =
 		| _ -> DTSwitch(e, List.map (fun (c,dt) -> convert_con ctx c, loop dt) cases, !def)
 	in
 	match !null with
-	| None -> dt
+	| None when is_explicit_null st.st_type ->
+		let econd = mk (TBinop(OpNotEq,e_st,mk (TConst TNull) (mk_mono()) p)) ctx.t.tbool p in
+		DTGuard(econd,dt,!def)
+	| None ->
+		dt
 	| Some dt_null ->
 		let econd = mk (TBinop(OpEq,e_st,mk (TConst TNull) (mk_mono()) p)) ctx.t.tbool p in
 		DTGuard(econd,dt_null,Some dt)
@@ -1097,7 +1109,8 @@ let transform_extractors eval cases p =
 		| [] ->
 			[]
 	in
-	loop cases,!has_extractor
+	let cases = loop cases in
+	cases,!has_extractor
 
 let extractor_depth = ref 0
 
