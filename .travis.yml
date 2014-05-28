@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 language: cpp
 
 os:
@@ -46,3 +47,13 @@ script:
   - haxe -version
   - haxe -neko RunTravis.n -main RunTravis -lib hx-yaml
   - neko RunTravis.n
+=======
+language: go
+go: 1.2
+
+before_install:
+  - sudo add-apt-repository ppa:eyecreate/haxe -y
+  - sudo apt-get update
+  - sudo apt-get install haxe -y --force-yes
+
+>>>>>>> upstream/master
